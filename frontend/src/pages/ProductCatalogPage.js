@@ -99,7 +99,7 @@ export default function ProductCatalogPage() {
                                 <Button size="small" variant="contained" onClick={() => handleBuy(p)} disabled={!p.finalPrice}>
                                     Buy Now
                                 </Button>
-                                <Button size="small" variant="outlined" onClick={() => addToCart(p)} disabled={!p.finalPrice}>
+                                <Button size="small" variant="outlined" onClick={() => addToCart({ productId: p._id, name: p.name, finalPrice: p.finalPrice })} disabled={!p.finalPrice}>
                                     Add to Cart
                                 </Button>
                             </CardActions>
