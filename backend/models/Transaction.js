@@ -33,6 +33,15 @@ const transactionSchema = new Schema({
     referenceId: {
         type: String
     },
+    balanceBefore: {
+        type: Number
+    },
+    balanceAfter: {
+        type: Number
+    },
+    meta: {
+        type: Schema.Types.Mixed
+    },
     createdAt: {
         type: Date,
         default: Date.now
