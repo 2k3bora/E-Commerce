@@ -161,6 +161,143 @@ export default function WalletPage() {
 
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
+            <Typography variant="h5" gutterBottom>Pending Deposit Requests</Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>User</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Transaction ID</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {deposits.filter(d => d.status === 'pending').length > 0 ? deposits.filter(d => d.status === 'pending').map((d) => (
+                    <TableRow key={d._id}>
+                      <TableCell>{new Date(d.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{d.user?.name || d.user?.email || 'Unknown'}</TableCell>
+                      <TableCell>₹{d.amount}</TableCell>
+                      <TableCell>{d.transactionId}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            onClick={async () => {
+                              try {
+                                await axios.post(`/api/wallet/deposits/${d._id}/approve`);
+                                alert('Deposit approved');
+                                fetchDeposits();
+                                fetchAdminStats();
+                              } catch (err) {
+                                alert('Failed: ' + (err.response?.data?.message || err.message));
+                              }
+                            }}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="error"
+                            onClick={async () => {
+                              if (!window.confirm('Reject this deposit?')) return;
+                              try {
+                                await axios.post(`/api/wallet/deposits/${d._id}/reject`);
+                                alert('Deposit rejected');
+                                fetchDeposits();
+                                fetchAdminStats();
+                              } catch (err) {
+                                alert('Failed: ' + (err.response?.data?.message || err.message));
+                              }
+                            }}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">No pending deposits</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h5" gutterBottom>Pending Withdrawal Requests</Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>User</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {withdrawals.filter(w => w.status === 'pending').length > 0 ? withdrawals.filter(w => w.status === 'pending').map((w) => (
+                    <TableRow key={w._id}>
+                      <TableCell>{new Date(w.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{w.user?.name || w.user?.email || 'Unknown'}</TableCell>
+                      <TableCell>₹{w.amount}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            onClick={async () => {
+                              try {
+                                await axios.post(`/api/wallet/withdraw/${w._id}/approve`);
+                                alert('Withdrawal approved');
+                                fetchWithdrawals();
+                                fetchAdminStats();
+                              } catch (err) {
+                                alert('Failed: ' + (err.response?.data?.message || err.message));
+                              }
+                            }}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="error"
+                            onClick={async () => {
+                              if (!window.confirm('Reject this withdrawal?')) return;
+                              try {
+                                await axios.post(`/api/wallet/withdraw/${w._id}/reject`);
+                                alert('Withdrawal rejected');
+                                fetchWithdrawals();
+                                fetchAdminStats();
+                              } catch (err) {
+                                alert('Failed: ' + (err.response?.data?.message || err.message));
+                              }
+                            }}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center">No pending withdrawals</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
             <Typography variant="h5" gutterBottom>All Deposit Requests</Typography>
             <TableContainer component={Paper}>
               <Table>
