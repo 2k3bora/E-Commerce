@@ -26,6 +26,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import OrderHistoryPage from './pages/OrderHistoryPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import WishlistPage from './pages/WishlistPage';
+import UserSettingsPage from './pages/UserSettingsPage';
 import { CartProvider } from './context/CartContext';
 import AuthContext from './context/AuthContext';
 
@@ -98,6 +99,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><UserSettingsPage /></ProtectedRoute>} />
               <Route path="/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
               <Route path="/products" element={<ProtectedRoute allowedRoles={['admin', 'distributor']}><ProductsPage /></ProtectedRoute>} />
               <Route path="/customers" element={<ProtectedRoute allowedRoles={['admin', 'distributor']}><CustomersPage /></ProtectedRoute>} />

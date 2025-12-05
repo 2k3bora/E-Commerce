@@ -63,6 +63,13 @@ const userSchema = new Schema({
         type: Boolean,
         default: false
     },
+    // Withdrawal details for processing withdrawal requests
+    withdrawalDetails: {
+        upiId: { type: String, trim: true },
+        bankAccountNumber: { type: String, trim: true },
+        bankIFSC: { type: String, trim: true },
+        bankAccountName: { type: String, trim: true }
+    },
     createdAt: {
         type: Date,
         default: Date.now
