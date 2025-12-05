@@ -1,0 +1,15 @@
+After creating your private GitHub repository, run these commands:
+
+# Replace YOUR-USERNAME with your actual GitHub username
+git remote add origin https://github.com/YOUR-USERNAME/ecommerce.git
+
+# Or if you use SSH:
+# git remote add origin git@github.com:YOUR-USERNAME/ecommerce.git
+
+# Push your code
+git branch -M main
+git push -u origin main
+
+# If you encounter authentication issues, you may need to:
+# 1. Use a Personal Access Token instead of password
+# 2. Or set up SSH keys for authentication

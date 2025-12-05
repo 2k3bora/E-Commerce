@@ -17,7 +17,7 @@ export default function BranchDashboard() {
                 const custRes = await axios.get('/api/customers');
                 setCustomers(custRes.data);
                 const ordRes = await axios.get('/api/order/list');
-                setOrders(ordRes.data);
+                setOrders(ordRes.data.orders || []);
                 const cfgRes = await axios.get('/api/app/config');
                 setAppConfig(cfgRes.data);
             } catch (err) {
