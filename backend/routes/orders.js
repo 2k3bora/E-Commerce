@@ -129,6 +129,7 @@ router.post('/create', auth, async (req, res) => {
       user: customerId,
       amount: finalPrice,
       type: 'debit',
+      category: 'purchase',
       description: 'Purchase debit',
       referenceId: order._id.toString(),
       balanceBefore,
