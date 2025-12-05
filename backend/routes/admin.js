@@ -184,5 +184,22 @@ router.post('/commission-config', auth, async (req, res) => {
   }
 });
 
+// GET /api/admin/user-profile/:userId - Get any user's profile (admin only)
+router.get('/user-profile/:userId', auth, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || user.role.toString().toLowerCase() !== 'admin') return res.status(403).json({ message: 'Forbidden, admin only' });
+
+    const User = require('../models/User');
+    const userProfile = await User.findById(req.params.userId).select('-password').lean();
+    if (!userProfile) return res.status(404).json({ message: 'User not found' });
+
+    return res.json(userProfile);
+  } catch (err) {
+    console.error('Fetch user profile error', err);
+    return res.status(500).json({ message: 'Internal error' });
+  }
+});
+
 module.exports = router;
 

@@ -118,6 +118,7 @@ router.post('/withdraw/:id/approve', authMiddleware, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
 
     try {
+        const { upiTransactionId } = req.body;
         const request = await WithdrawalRequest.findById(req.params.id);
         if (!request) return res.status(404).json({ message: 'Request not found' });
         if (request.status !== 'pending') return res.status(400).json({ message: 'Request already processed' });
@@ -130,6 +131,9 @@ router.post('/withdraw/:id/approve', authMiddleware, async (req, res) => {
 
         request.status = 'approved';
         request.processedAt = new Date();
+        if (upiTransactionId) {
+            request.upiTransactionId = upiTransactionId;
+        }
         await request.save();
 
         const tx = new Transaction({
@@ -138,7 +142,7 @@ router.post('/withdraw/:id/approve', authMiddleware, async (req, res) => {
             amount: request.amount,
             type: 'debit',
             category: 'refund',
-            description: 'Withdrawal approved',
+            description: `Withdrawal approved${upiTransactionId ? ' (TXN: ' + upiTransactionId + ')' : ''}`,
             referenceId: request._id.toString(),
             balanceBefore: wallet.balance + request.amount,
             balanceAfter: wallet.balance

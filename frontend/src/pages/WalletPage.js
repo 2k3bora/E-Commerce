@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, CircularProgress, Alert, TextField, Button, Grid } from '@mui/material';
+import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, CircularProgress, Alert, TextField, Button, Grid, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -17,6 +17,14 @@ export default function WalletPage() {
   const [transactionId, setTransactionId] = useState('');
   const [deposits, setDeposits] = useState([]);
   const [appConfig, setAppConfig] = useState(null);
+
+  // UPI Payment Dialog state for withdrawal approvals
+  const [paymentDialog, setPaymentDialog] = useState({
+    open: false,
+    withdrawal: null,
+    upiTransactionId: '',
+    userProfile: null
+  });
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -254,17 +262,31 @@ export default function WalletPage() {
                             variant="contained"
                             color="success"
                             onClick={async () => {
+                              // Fetch user profile to get UPI ID
                               try {
-                                await axios.post(`/api/wallet/withdraw/${w._id}/approve`);
-                                alert('Withdrawal approved');
-                                fetchWithdrawals();
-                                fetchAdminStats();
+                                const userRes = await axios.get(`/api/user/profile`, {
+                                  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                                });
+                                // For admin, we need to fetch the withdrawal user's profile
+                                const profileRes = await axios.get('/api/admin/user-profile/' + w.user._id);
+                                setPaymentDialog({
+                                  open: true,
+                                  withdrawal: w,
+                                  upiTransactionId: '',
+                                  userProfile: profileRes.data
+                                });
                               } catch (err) {
-                                alert('Failed: ' + (err.response?.data?.message || err.message));
+                                console.error('Failed to fetch user profile', err);
+                                setPaymentDialog({
+                                  open: true,
+                                  withdrawal: w,
+                                  upiTransactionId: '',
+                                  userProfile: null
+                                });
                               }
                             }}
                           >
-                            Approve
+                            Approve & Pay
                           </Button>
                           <Button
                             size="small"
@@ -370,6 +392,107 @@ export default function WalletPage() {
             </TableContainer>
           </Grid>
         </Grid>
+
+        {/* UPI Payment Dialog for Withdrawal Approval */}
+        <Dialog open={paymentDialog.open} onClose={() => setPaymentDialog({ ...paymentDialog, open: false })} maxWidth="sm" fullWidth>
+          <DialogTitle>Complete Withdrawal Payment</DialogTitle>
+          <DialogContent>
+            {paymentDialog.withdrawal && (
+              <Box sx={{ pt: 2 }}>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Make UPI payment to the user and enter the transaction ID below
+                </Alert>
+
+                <Typography variant="subtitle1" gutterBottom>
+                  <strong>User:</strong> {paymentDialog.withdrawal.user?.name || paymentDialog.withdrawal.user?.email}
+                </Typography>
+                <Typography variant="subtitle1" gutterBottom>
+                  <strong>Amount:</strong> ₹{paymentDialog.withdrawal.amount}
+                </Typography>
+
+                {paymentDialog.userProfile?.withdrawalDetails?.upiId ? (
+                  <>
+                    <Typography variant="subtitle1" gutterBottom>
+                      <strong>User's UPI ID:</strong> {paymentDialog.userProfile.withdrawalDetails.upiId}
+                    </Typography>
+
+                    <Box sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2,
+                      p: 2,
+                      bgcolor: '#f5f5f5',
+                      borderRadius: 2,
+                      my: 2
+                    }}>
+                      <Typography variant="subtitle2">Scan to Pay</Typography>
+                      <QRCodeSVG
+                        value={`upi://pay?pa=${paymentDialog.userProfile.withdrawalDetails.upiId}&pn=${paymentDialog.withdrawal.user?.name || 'User'}&am=${paymentDialog.withdrawal.amount}&cu=INR&tn=Withdrawal`}
+                        size={200}
+                        level="H"
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        href={`upi://pay?pa=${paymentDialog.userProfile.withdrawalDetails.upiId}&pn=${paymentDialog.withdrawal.user?.name || 'User'}&am=${paymentDialog.withdrawal.amount}&cu=INR&tn=Withdrawal`}
+                        target="_blank"
+                      >
+                        Open in UPI App
+                      </Button>
+                    </Box>
+                  </>
+                ) : paymentDialog.userProfile?.withdrawalDetails?.bankAccountNumber ? (
+                  <>
+                    <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>Bank Details:</Typography>
+                    <Typography variant="body2"><strong>Account:</strong> {paymentDialog.userProfile.withdrawalDetails.bankAccountNumber}</Typography>
+                    <Typography variant="body2"><strong>IFSC:</strong> {paymentDialog.userProfile.withdrawalDetails.bankIFSC}</Typography>
+                    <Typography variant="body2"><strong>Name:</strong> {paymentDialog.userProfile.withdrawalDetails.bankAccountName}</Typography>
+                  </>
+                ) : (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    User hasn't set up withdrawal details. Use bank details from withdrawal request: {paymentDialog.withdrawal.bankDetails}
+                  </Alert>
+                )}
+
+                <TextField
+                  fullWidth
+                  label="UPI Transaction ID *"
+                  placeholder="e.g., 123456789012"
+                  value={paymentDialog.upiTransactionId}
+                  onChange={(e) => setPaymentDialog({ ...paymentDialog, upiTransactionId: e.target.value })}
+                  sx={{ mt: 3 }}
+                  helperText="Enter the UPI transaction ID after making the payment"
+                />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPaymentDialog({ ...paymentDialog, open: false })}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              disabled={!paymentDialog.upiTransactionId}
+              onClick={async () => {
+                try {
+                  await axios.post(`/api/wallet/withdraw/${paymentDialog.withdrawal._id}/approve`, {
+                    upiTransactionId: paymentDialog.upiTransactionId
+                  });
+                  alert('Withdrawal approved and payment recorded!');
+                  setPaymentDialog({ open: false, withdrawal: null, upiTransactionId: '', userProfile: null });
+                  fetchWithdrawals();
+                  fetchAdminStats();
+                } catch (err) {
+                  alert('Failed: ' + (err.response?.data?.message || err.message));
+                }
+              }}
+            >
+              Confirm Approval
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
