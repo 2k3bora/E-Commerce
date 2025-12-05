@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 export default function WalletPage() {
   const { user } = useContext(AuthContext);
   const [walletData, setWalletData] = useState(null);
+  const [adminStats, setAdminStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -18,11 +19,27 @@ export default function WalletPage() {
   const [appConfig, setAppConfig] = useState(null);
 
   useEffect(() => {
-    fetchWalletData();
+    if (user?.role === 'admin') {
+      fetchAdminStats();
+    } else {
+      fetchWalletData();
+    }
     fetchWithdrawals();
     fetchDeposits();
     fetchAppConfig();
-  }, []);
+  }, [user]);
+
+  const fetchAdminStats = async () => {
+    try {
+      const res = await axios.get('/api/wallet/admin/stats');
+      setAdminStats(res.data);
+    } catch (err) {
+      console.error('Error fetching admin stats', err);
+      setError('Failed to load statistics');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchWalletData = async () => {
     try {
@@ -102,6 +119,125 @@ export default function WalletPage() {
   const upiId = appConfig?.adminUpiId || 'company@upi';
   const companyName = appConfig?.siteName || 'E-Commerce';
 
+  // Admin View
+  if (user?.role === 'admin' && adminStats) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>Wallet Management</Typography>
+
+        <Box sx={{ display: 'flex', gap: 3, mb: 4, flexWrap: 'wrap' }}>
+          <Card sx={{ minWidth: 250, bgcolor: 'success.main', color: 'success.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">Total Customer Deposits</Typography>
+              <Typography variant="h3">₹{adminStats.totalDeposits?.toFixed(2) || '0.00'}</Typography>
+              <Typography variant="caption">{adminStats.depositCount} transactions</Typography>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ minWidth: 250, bgcolor: 'error.main', color: 'error.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">Total Customer Withdrawals</Typography>
+              <Typography variant="h3">₹{adminStats.totalWithdrawals?.toFixed(2) || '0.00'}</Typography>
+              <Typography variant="caption">{adminStats.withdrawalCount} transactions</Typography>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ minWidth: 250, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">Net Flow</Typography>
+              <Typography variant="h3">₹{adminStats.netFlow?.toFixed(2) || '0.00'}</Typography>
+              <Typography variant="caption">Deposits - Withdrawals</Typography>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ minWidth: 250, bgcolor: 'warning.main', color: 'warning.contrastText' }}>
+            <CardContent>
+              <Typography variant="h6">Pending Requests</Typography>
+              <Typography variant="h4">{adminStats.pendingDeposits} Deposits</Typography>
+              <Typography variant="h4">{adminStats.pendingWithdrawals} Withdrawals</Typography>
+            </CardContent>
+          </Card>
+        </Box>
+
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h5" gutterBottom>All Deposit Requests</Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>User</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Transaction ID</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {deposits.length > 0 ? deposits.map((d) => (
+                    <TableRow key={d._id}>
+                      <TableCell>{new Date(d.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{d.user?.name || d.user?.email || 'Unknown'}</TableCell>
+                      <TableCell>₹{d.amount}</TableCell>
+                      <TableCell>{d.transactionId}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={d.status.toUpperCase()}
+                          color={d.status === 'approved' ? 'success' : d.status === 'rejected' ? 'error' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">No deposit requests</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h5" gutterBottom>All Withdrawal Requests</Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>User</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {withdrawals.length > 0 ? withdrawals.map((w) => (
+                    <TableRow key={w._id}>
+                      <TableCell>{new Date(w.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{w.user?.name || w.user?.email || 'Unknown'}</TableCell>
+                      <TableCell>₹{w.amount}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={w.status.toUpperCase()}
+                          color={w.status === 'approved' ? 'success' : w.status === 'rejected' ? 'error' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center">No withdrawal requests</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  }
+
+  // Regular User View
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>My Wallet</Typography>

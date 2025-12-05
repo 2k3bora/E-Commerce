@@ -7,6 +7,41 @@ const WithdrawalRequest = require('../models/WithdrawalRequest');
 const DepositRequest = require('../models/DepositRequest');
 const mongoose = require('mongoose');
 
+// GET /api/wallet/admin/stats (Admin only)
+// Get total deposits and withdrawals statistics
+router.get('/admin/stats', authMiddleware, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
+
+    try {
+        // Get total approved deposits
+        const approvedDeposits = await DepositRequest.find({ status: 'approved' });
+        const totalDeposits = approvedDeposits.reduce((sum, dep) => sum + dep.amount, 0);
+        const depositCount = approvedDeposits.length;
+
+        // Get total approved withdrawals
+        const approvedWithdrawals = await WithdrawalRequest.find({ status: 'approved' });
+        const totalWithdrawals = approvedWithdrawals.reduce((sum, wit) => sum + wit.amount, 0);
+        const withdrawalCount = approvedWithdrawals.length;
+
+        // Get pending counts
+        const pendingDeposits = await DepositRequest.countDocuments({ status: 'pending' });
+        const pendingWithdrawals = await WithdrawalRequest.countDocuments({ status: 'pending' });
+
+        res.json({
+            totalDeposits,
+            depositCount,
+            totalWithdrawals,
+            withdrawalCount,
+            pendingDeposits,
+            pendingWithdrawals,
+            netFlow: totalDeposits - totalWithdrawals
+        });
+    } catch (err) {
+        console.error('Admin stats fetch error', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET /api/wallet
 // Get current user's wallet balance and recent transactions
 router.get('/', authMiddleware, async (req, res) => {
@@ -158,6 +193,25 @@ router.post('/deposit', authMiddleware, async (req, res) => {
     } catch (err) {
         console.error('Deposit request error', err);
         res.status(500).json({ message: 'Server error: ' + err.message });
+    }
+});
+
+// GET /api/wallet/deposits
+// List deposit requests for current user (or all for admin)
+router.get('/deposits', authMiddleware, async (req, res) => {
+    try {
+        let query = {};
+        if (req.user.role !== 'admin') {
+            query.user = req.user._id;
+        }
+        const requests = await DepositRequest.find(query)
+            .sort({ createdAt: -1 })
+            .populate('user', 'name email')
+            .populate('requestedBy', 'name email');
+        res.json(requests);
+    } catch (err) {
+        console.error('List deposits error', err);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
