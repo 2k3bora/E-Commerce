@@ -135,7 +135,7 @@ export default function AdminProductManager() {
                                     </TableCell>
                                     <TableCell>{p.active ? 'Yes' : 'No'}</TableCell>
                                     <TableCell>
-                                        {(p.createdBy === user._id || user.role === 'admin') ? (
+                                        {(String(p.createdBy) === String(user._id) || user.role === 'admin') ? (
                                             <>
                                                 <Button size="small" onClick={() => handleOpen(p)}>Edit</Button>
                                                 <Button size="small" color="error" onClick={() => handleDelete(p._id)}>Delete</Button>
