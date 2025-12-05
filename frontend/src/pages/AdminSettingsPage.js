@@ -136,8 +136,6 @@ export default function AdminSettingsPage() {
       <Button variant="contained" onClick={handleSave} disabled={saving} sx={{ mr: 2 }}>Save</Button>
       <Button variant="outlined" onClick={handleCreateAdminNow}>Create/Set Default Admin Now</Button>
       <Button variant="contained" color="secondary" onClick={() => navigate('/admin/products')} sx={{ ml: 2 }}>Manage Products</Button>
-      <Button variant="outlined" onClick={() => navigate('/admin/withdrawals')} sx={{ ml: 2 }}>Withdrawals</Button>
-      <Button variant="outlined" onClick={() => navigate('/admin/deposits')} sx={{ ml: 2 }}>Deposits</Button>
       <Box sx={{ mt: 4 }}>
         <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>Distributors</Typography>
         <TextField fullWidth label="Distributor Email" value={distributorEmail} onChange={e => setDistributorEmail(e.target.value)} sx={{ mb: 2 }} />
