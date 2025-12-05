@@ -68,8 +68,8 @@ async function calculateFinalPrice(productId, customerId, session = null) {
 }
 
 // POST /api/order/create
+// Note: Transactions removed to support standalone MongoDB (non-replica set)
 router.post('/create', auth, async (req, res) => {
-  const session = await mongoose.startSession();
   try {
     const customerId = req.user._id;
     const { productId } = req.body;
@@ -78,33 +78,34 @@ router.post('/create', auth, async (req, res) => {
 
     if (!customerId || !productId) return res.status(400).json({ message: 'productId required' });
 
-    session.startTransaction();
-
     // Calculate price based on customer's hierarchy
-    const priceResult = await calculateFinalPrice(productId, customerId, session);
+    const priceResult = await calculateFinalPrice(productId, customerId);
     const finalPrice = priceResult.finalPrice;
 
     console.log('[Order] Price calculated:', finalPrice, 'breakdown:', priceResult);
 
     // Find wallet and ensure sufficient balance
-    let wallet = await Wallet.findOne({ user: customerId }).session(session);
+    let wallet = await Wallet.findOne({ user: customerId });
 
     // Create wallet if it doesn't exist
     if (!wallet) {
       console.log('[Order] Wallet not found, creating new wallet for user:', customerId);
       wallet = new Wallet({ user: customerId, balance: 0, transactions: [] });
-      await wallet.save({ session });
+      await wallet.save();
     }
 
     console.log('[Order] Wallet balance:', wallet.balance, 'Required:', finalPrice);
 
     if (wallet.balance < finalPrice) {
-      throw new Error(`Insufficient wallet balance. You have ₹${wallet.balance.toFixed(2)}, but need ₹${finalPrice.toFixed(2)}`);
+      return res.status(402).json({
+        ok: false,
+        message: `Insufficient wallet balance. You have ₹${wallet.balance.toFixed(2)}, but need ₹${finalPrice.toFixed(2)}`
+      });
     }
 
     const balanceBefore = wallet.balance;
     wallet.balance = wallet.balance - finalPrice;
-    await wallet.save({ session });
+    await wallet.save();
 
     // Create order
     const order = new Order({
@@ -120,9 +121,9 @@ router.post('/create', auth, async (req, res) => {
       status: 'paid',
       paymentMeta: { method: 'wallet' }
     });
-    await order.save({ session });
+    await order.save();
 
-    // Create transaction
+    // Create transaction record
     const tx = new Transaction({
       wallet: wallet._id,
       user: customerId,
@@ -134,53 +135,54 @@ router.post('/create', auth, async (req, res) => {
       balanceAfter: wallet.balance,
       meta: { orderId: order._id }
     });
-    await tx.save({ session });
+    await tx.save();
 
     // Distribute commissions to respective wallets
-    const adminUser = await User.findOne({ role: 'admin' }).session(session);
+    const adminUser = await User.findOne({ role: 'admin' });
     if (adminUser && priceResult.companyCommission > 0) {
-      const adminWallet = await Wallet.findOne({ user: adminUser._id }).session(session);
-      if (adminWallet) {
-        adminWallet.balance += priceResult.companyCommission;
-        await adminWallet.save({ session });
+      let adminWallet = await Wallet.findOne({ user: adminUser._id });
+      if (!adminWallet) {
+        adminWallet = new Wallet({ user: adminUser._id, balance: 0, transactions: [] });
       }
+      adminWallet.balance += priceResult.companyCommission;
+      await adminWallet.save();
+      console.log('[Order] Company commission credited:', priceResult.companyCommission);
     }
 
     if (priceResult.distributorId && priceResult.distributorCommission > 0) {
-      const distWallet = await Wallet.findOne({ user: priceResult.distributorId }).session(session);
-      if (distWallet) {
-        distWallet.balance += priceResult.distributorCommission;
-        await distWallet.save({ session });
+      let distWallet = await Wallet.findOne({ user: priceResult.distributorId });
+      if (!distWallet) {
+        distWallet = new Wallet({ user: priceResult.distributorId, balance: 0, transactions: [] });
       }
+      distWallet.balance += priceResult.distributorCommission;
+      await distWallet.save();
+      console.log('[Order] Distributor commission credited:', priceResult.distributorCommission);
     }
 
     if (priceResult.branchId && priceResult.branchCommission > 0) {
-      const branchWallet = await Wallet.findOne({ user: priceResult.branchId }).session(session);
-      if (branchWallet) {
-        branchWallet.balance += priceResult.branchCommission;
-        await branchWallet.save({ session });
+      let branchWallet = await Wallet.findOne({ user: priceResult.branchId });
+      if (!branchWallet) {
+        branchWallet = new Wallet({ user: priceResult.branchId, balance: 0, transactions: [] });
       }
+      branchWallet.balance += priceResult.branchCommission;
+      await branchWallet.save();
+      console.log('[Order] Branch commission credited:', priceResult.branchCommission);
     }
 
     // Loyalty points
-    const commissionConfig = await CommissionConfig.findOne({ active: true }).session(session);
+    const commissionConfig = await CommissionConfig.findOne({ active: true });
     let points = 0;
     if (commissionConfig && commissionConfig.customerPointRate) {
       points = Math.floor(finalPrice * commissionConfig.customerPointRate);
-      await User.updateOne({ _id: customerId }, { $inc: { 'metadata.loyaltyPoints': points } }).session(session);
+      await User.updateOne({ _id: customerId }, { $inc: { 'metadata.loyaltyPoints': points } });
       order.loyaltyPointsEarned = points;
-      await order.save({ session });
+      await order.save();
     }
 
-    await session.commitTransaction();
-    session.endSession();
-
+    console.log('[Order] Order created successfully:', order._id);
     return res.json({ ok: true, orderId: order._id, finalPrice, loyaltyPointsEarned: points });
   } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
     console.error('Order creation failed:', err);
-    if (err.message === 'Insufficient wallet balance') return res.status(402).json({ ok: false, message: err.message });
     return res.status(500).json({ ok: false, message: err.message });
   }
 });
