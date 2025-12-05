@@ -136,7 +136,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/products/:id - delete (only creator can delete)
+// DELETE /api/products/:id - delete (creator or admin can delete)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const user = req.user;
@@ -147,9 +147,9 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Check if user is the creator
-    if (product.createdBy.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: 'Only the product creator can delete this product' });
+    // Check if user is the creator OR admin
+    if (product.createdBy.toString() !== user._id.toString() && user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only the product creator or admin can delete this product' });
     }
 
     await Product.findByIdAndDelete(productId);
