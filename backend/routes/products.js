@@ -215,53 +215,6 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// GET /api/products/:id - Get single product detail
-router.get('/:id', async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id)
-      .populate('createdBy', 'name email username')
-      .lean();
-
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    res.json(product);
-  } catch (err) {
-    console.error('Get product detail error', err);
-    res.status(500).json({ message: 'Internal error' });
-  }
-});
-
-// GET /api/products/:id/related - Get related products
-router.get('/:id/related', async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    const query = {
-      _id: { $ne: product._id },
-      active: true,
-      $or: [
-        { category: product.category },
-        { tags: { $in: product.tags || [] } }
-      ]
-    };
-
-    const relatedProducts = await Product.find(query)
-      .limit(6)
-      .select('name description images basePrice averageRating reviewCount category')
-      .lean();
-
-    res.json(relatedProducts);
-  } catch (err) {
-    console.error('Get related products error', err);
-    res.status(500).json({ message: 'Internal error' });
-  }
-});
-
 // GET /api/products/price?productId=&branchId=
 router.get('/price', async (req, res) => {
   try {
@@ -354,5 +307,54 @@ router.get('/price', async (req, res) => {
     return res.status(500).json({ message: 'Internal error' });
   }
 });
+
+// GET /api/products/:id - Get single product detail
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id)
+      .populate('createdBy', 'name email username')
+      .lean();
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    res.json(product);
+  } catch (err) {
+    console.error('Get product detail error', err);
+    res.status(500).json({ message: 'Internal error' });
+  }
+});
+
+// GET /api/products/:id/related - Get related products
+router.get('/:id/related', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const query = {
+      _id: { $ne: product._id },
+      active: true,
+      $or: [
+        { category: product.category },
+        { tags: { $in: product.tags || [] } }
+      ]
+    };
+
+    const relatedProducts = await Product.find(query)
+      .limit(6)
+      .select('name description images basePrice averageRating reviewCount category')
+      .lean();
+
+    res.json(relatedProducts);
+  } catch (err) {
+    console.error('Get related products error', err);
+    res.status(500).json({ message: 'Internal error' });
+  }
+});
+
+
 
 module.exports = router;
