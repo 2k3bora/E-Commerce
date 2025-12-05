@@ -73,6 +73,9 @@ router.post('/create', auth, async (req, res) => {
   try {
     const customerId = req.user._id;
     const { productId } = req.body;
+
+    console.log('[Order] Creating order for customer:', customerId, 'product:', productId);
+
     if (!customerId || !productId) return res.status(400).json({ message: 'productId required' });
 
     session.startTransaction();
@@ -81,12 +84,22 @@ router.post('/create', auth, async (req, res) => {
     const priceResult = await calculateFinalPrice(productId, customerId, session);
     const finalPrice = priceResult.finalPrice;
 
+    console.log('[Order] Price calculated:', finalPrice, 'breakdown:', priceResult);
+
     // Find wallet and ensure sufficient balance
-    const wallet = await Wallet.findOne({ user: customerId }).session(session);
-    if (!wallet) throw new Error('Wallet not found');
+    let wallet = await Wallet.findOne({ user: customerId }).session(session);
+
+    // Create wallet if it doesn't exist
+    if (!wallet) {
+      console.log('[Order] Wallet not found, creating new wallet for user:', customerId);
+      wallet = new Wallet({ user: customerId, balance: 0, transactions: [] });
+      await wallet.save({ session });
+    }
+
+    console.log('[Order] Wallet balance:', wallet.balance, 'Required:', finalPrice);
 
     if (wallet.balance < finalPrice) {
-      throw new Error('Insufficient wallet balance');
+      throw new Error(`Insufficient wallet balance. You have ₹${wallet.balance.toFixed(2)}, but need ₹${finalPrice.toFixed(2)}`);
     }
 
     const balanceBefore = wallet.balance;

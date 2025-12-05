@@ -17,6 +17,7 @@ export default function CheckoutPage() {
         setStatus(null);
         let successCount = 0;
         let failCount = 0;
+        let lastError = '';
 
         // Process items sequentially (could be parallel but sequential is safer for wallet balance checks)
         for (const item of cart) {
@@ -28,6 +29,7 @@ export default function CheckoutPage() {
                 successCount++;
             } catch (err) {
                 console.error('Checkout error for item', item.name, err);
+                lastError = err.response?.data?.message || err.message;
                 failCount++;
             }
         }
@@ -36,15 +38,15 @@ export default function CheckoutPage() {
         if (failCount === 0 && successCount > 0) {
             clearCart();
             setStatus({ type: 'success', msg: `Checkout successful! ${successCount} items purchased.` });
-            setTimeout(() => navigate('/wallet'), 2000);
+            setTimeout(() => navigate('/orders'), 2000);
         } else if (successCount > 0) {
             // Partial success
             // We should probably remove purchased items from cart, but for simplicity let's just clear or warn.
             // Let's clear cart for now as logic to remove specific instances is complex without unique IDs per line item.
             clearCart();
-            setStatus({ type: 'warning', msg: `Checkout complete with issues. ${successCount} purchased, ${failCount} failed.` });
+            setStatus({ type: 'warning', msg: `Checkout complete with issues. ${successCount} purchased, ${failCount} failed. Error: ${lastError}` });
         } else {
-            setStatus({ type: 'error', msg: 'Checkout failed. Please check your wallet balance.' });
+            setStatus({ type: 'error', msg: `Checkout failed: ${lastError}` });
         }
     };
 
